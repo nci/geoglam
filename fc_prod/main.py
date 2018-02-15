@@ -289,6 +289,27 @@ if __name__ == "__main__":
     tile_v = args.v
     dest_path = args.destination
 
+    data_path = os.path.join(root_path, "MCD43A4.006")
+    tile_path = [os.path.join(data_path, p) for p in os.listdir(data_path) if p.startswith('%d.%.2d' % (tile_year, tile_month))]
+
+    tile_ts_max = None
+    for t, tf in enumerate(tile_path):
+        print tf
+        timestamp = tf.split('/')[-1]
+        ts_parts = timestamp.split('.')
+        day = int(ts_parts[-1])
+        
+        year = int(ts_parts[0])
+        month = int(ts_parts[1])
+        
+        ts = np.datetime64('%d-%02d-%02d' % (year, month, day))
+        if tile_ts_max is None:
+            tile_ts_max = ts
+            continue
+
+        if ts > tile_ts_max:
+            tile_ts_max = ts
+  
     ts_max = None
     if os.path.isfile(args.update_file):
         print 'Updating %s' % args.update_file
@@ -296,19 +317,20 @@ if __name__ == "__main__":
             ts = netCDF4.num2date(src['time'][:], src['time'].units, src['time'].calendar)
             ts_max = np.datetime64(ts.max())
             print 'latest existing timestamp to update: %s' % str(ts_max)
+            print 'latest tile timestamp: %s' % str(tile_ts_max)
             
-            tile_ts = np.datetime64('%d-%02d' % (tile_year, tile_month), 'D')
-            print 'tile timestamp: %s' % str(tile_ts)
-            
-            if tile_ts <= ts_max:
+            if tile_ts_max <= ts_max:
                 print 'tile timestamp is older than existing timestamp of the product. No updates needed.'
                 sys.exit(0)
     else:
       print 'Update file not found: %s, creating FC products from scratch' % args.update_file
 
-    data_path = os.path.join(root_path, "MCD43A4.006")
-    tile_path = [os.path.join(data_path, p) for p in os.listdir(data_path) if p.startswith('%d.%.2d' % (tile_year, tile_month))]
-        
+    # We want to process every 8 days but MODIS has 4-day interval
+    # Therefore we will need to compute the effective update date by adding the latest
+    # date in the existing FC file by 4 days
+    if ts_max is not None:
+      effective_ts_max = ts_max + np.timedelta64(4,'D')
+
     days = []
     for t, tf in enumerate(tile_path):
         timestamp = tf.split('/')[-1]
@@ -320,7 +342,7 @@ if __name__ == "__main__":
             month = int(ts_parts[1])
             
             ts = np.datetime64('%d-%02d-%02d' % (year, month, day))
-            if ts <= ts_max:
+            if ts <= effective_ts_max:
                 continue
                 
         days.append(day)
@@ -344,7 +366,7 @@ if __name__ == "__main__":
     for d in desired_days:
         ts = '%d.%.2d.%.2d' % (tile_year, tile_month, d)  
         desired_timestamps.append(ts)
-    
+
     # We will need to overlay the A2 mask on the A4 data
     # So we first loop through the timestamps then filter the data files
     # to ensure of the order of data files
