@@ -280,7 +280,7 @@ if __name__ == "__main__":
     parser.add_argument("--version", default='310', type=str, help="Product version")
     parser.add_argument("--update_file", default='', type=str, help="Existing prodcut file to update")
     args = parser.parse_args()
-
+    
     tile_year = args.year
     tile_month = args.month
     root_path = args.root_path
@@ -289,8 +289,13 @@ if __name__ == "__main__":
     tile_v = args.v
     dest_path = args.destination
 
+    print args
     data_path = os.path.join(root_path, "MCD43A4.006")
     tile_path = [os.path.join(data_path, p) for p in os.listdir(data_path) if p.startswith('%d.%.2d' % (tile_year, tile_month))]
+
+    if len(tile_path) == 0:
+      print 'No tiles found'
+      sys.exit(0)
 
     tile_ts_max = None
     for t, tf in enumerate(tile_path):
@@ -309,7 +314,7 @@ if __name__ == "__main__":
 
         if ts > tile_ts_max:
             tile_ts_max = ts
-  
+
     ts_max = None
     if os.path.isfile(args.update_file):
         print 'Updating %s' % args.update_file
@@ -420,7 +425,6 @@ if __name__ == "__main__":
 
     tile_files = []
     mask_tile_files = []
-
     for im, modis_tile in enumerate(_tile_files):
       if modis_tile is not None and _mask_tile_files[im] is not None:
         tile_files.append(modis_tile)
