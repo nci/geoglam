@@ -141,18 +141,20 @@ def compute_mean_diff(data):
 def compute_by_month(src_root_filename, raw_src_file_list, month, mean_diffs_output_dir, percentiles_output_dir, ver):
     pv_data = npv_data = soil_data = None
     t0 = time.time()
-
+    
     src_file_list = []
     for src_f in raw_src_file_list:
       if os.path.isfile(src_f):
         src_file_list.append(src_f)
       else:
         print 'source file not found: %s' % src_f
-
-    timestamp_list = []
-    for _, _ in enumerate(src_file_list):
-      timestamp_list.append(datetime.datetime(1970, 1, 1, 0, 0))
     
+    timestamp_list = []
+    for _, src_f in enumerate(src_file_list):
+      parts = src_f.split('.')
+      year = int(parts[-3])
+      timestamp_list.append(datetime.datetime(year, month, 1, 0, 0))
+
     for i_src, src_f in enumerate(src_file_list):
         with netCDF4.Dataset(src_f) as ds:
             month2idx = -1
