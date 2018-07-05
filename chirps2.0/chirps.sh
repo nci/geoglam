@@ -30,4 +30,4 @@ wget ftp://ftp.chg.ucsb.edu/pub/org/chg/products/CHIRPS-2.0/global_dekad/netcdf/
 nccopy -3 chirps-v2.0.$1.dekads.nc chirps-v2.0.$1.dekads.nc3
 gdal_translate -of netcdf -co "WRITE_BOTTOMUP=NO" chirps-v2.0.$1.dekads.nc3 chirps-v2.0.$1.dekads.flipped.nc3
 nccopy -d 5 -7 -c time/4,lat/250,lon/900 chirps-v2.0.$1.dekads.flipped.nc3 chirps-v2.0.$1.dekads.nc
-rm *.nc3
+rm chirps-v2.0.$1.dekads.nc3
