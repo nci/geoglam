@@ -81,6 +81,18 @@ if __name__ == "__main__":
   vrt_template = get_vrt_template(args.src_ds)
 
   root = ET.fromstring(vrt_template)
+  mdis = root.findall('./Metadata/MDI')
+  for mdi in mdis:
+    mdi_kv = mdi.get('key')
+    if mdi_kv is None:
+      continue
+    if 'bare_soil#' in mdi_kv:
+      parts = mdi_kv.split('#')
+      assert len(parts) == 2, 'invalid mdi key: %s' % mdi_kv
+      mdi.set('key', 'total_cover#' + parts[1])
+
+    if mdi_kv == 'bare_soil#long_name':
+      mdi.text = 'Total_Cover'
 
   bands = root.findall('./VRTRasterBand')
   for ib, band_ele in enumerate(bands):
