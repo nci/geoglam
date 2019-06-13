@@ -39,6 +39,7 @@ ANOMALY_MEAN_DIFF_OUTPUT=$BASE_OUTPUT/monthly/anomalies
 ANOMALY_MEAN_DIFF_TMP_OUTPUT=${ANOMALY_MEAN_DIFF_OUTPUT}_h${H}v${V}_tmp
 ANOMALY_PERCENTILE_OUTPUT=$BASE_OUTPUT/monthly/deciles
 ANOMALY_PERCENTILE_TMP_OUTPUT=${ANOMALY_PERCENTILE_OUTPUT}_h${H}v${V}_tmp
+TOTAL_COVER_OUTPUT=$BASE_OUTPUT/8-day/total_cover
 
 if [[ "$CHECKPOINT" = 'fc_prod' ]]; then
 mkdir -p $FC_OUTPUT
@@ -121,8 +122,14 @@ date "+%Y-%m-%d %H:%M:%S"
 echo __checkpoint_cleanup
 fi
 
+
+if [[ "$CHECKPOINT" = 'all_agg' ]] || [[ "$CHECKPOINT" = 'derived' ]]; then
+mkdir -p ${TOTAL_COVER_OUTPUT}
+FC_FILES=$(ls $PACKED_OUTPUT/FC.v${VER}.MCD43A4.h${H}v${V}.*.006.nc)
+$PARALLEL -k $PYTHON derived_prod/build_total_cover_vrt.py NETCDF:{}:bare_soil --dst_dir ${TOTAL_COVER_OUTPUT} ::: $FC_FILES
+
 date "+%Y-%m-%d %H:%M:%S"
+echo __checkpoint_derived
+fi
 
-
-
-
+date "+%Y-%m-%d %H:%M:%S"
