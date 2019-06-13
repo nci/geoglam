@@ -42,7 +42,7 @@ def pack_data(src_filename, output_filename, pv_data, npv_data, soil_data, data_
             for key in attrs:
                 setattr(dest, key, attrs[key])
         setattr(dest, "date_created", datetime.datetime.now().strftime("%Y%m%dT%H%M%S"))
-    
+        fill_value = 127 if data_type == 'i1' else 255 
         ds = gdal.Open('NETCDF:"%s":phot_veg' % src_filename)
         proj_wkt = ds.GetProjection()
         geot = ds.GetGeoTransform()
@@ -62,27 +62,27 @@ def pack_data(src_filename, output_filename, pv_data, npv_data, soil_data, data_
         var.units = "m"
         var.long_name = "x coordinate of projection"
         var.standard_name = "projection_x_coordinate"
-        var[:] = np.linspace(geot[0], geot[0]+(geot[1]*ds.RasterXSize), ds.RasterXSize)
+        var[:] = np.arange(0, ds.RasterXSize) * geot[1] + geot[0] + geot[1]/2
 
         var = dest.createVariable("y", "f8", ("y",))
         var.units = "m"
         var.long_name = "y coordinate of projection"
         var.standard_name = "projection_y_coordinate"
-        var[:] = np.linspace(geot[3], geot[3]+(geot[5]*ds.RasterYSize), ds.RasterYSize)
+        var[:] = np.arange(0, ds.RasterYSize) * geot[5] + geot[3] + geot[5]/2
 
-        var = dest.createVariable("phot_veg", data_type, ("time", "y", "x"), fill_value=255, zlib=True)
+        var = dest.createVariable("phot_veg", data_type, ("time", "y", "x"), fill_value=fill_value, zlib=True)
         var.long_name = "Photosynthetic Vegetation"
         var.units = '%'
         var.grid_mapping = "sinusoidal"
         var[:] = pv_data
 
-        var = dest.createVariable("nphot_veg", data_type, ("time", "y", "x"), fill_value=255, zlib=True)
+        var = dest.createVariable("nphot_veg", data_type, ("time", "y", "x"), fill_value=fill_value, zlib=True)
         var.long_name = "Non Photosynthetic Vegetation"
         var.units = '%'
         var.grid_mapping = "sinusoidal"
         var[:] = npv_data
 
-        var = dest.createVariable("bare_soil", data_type, ("time", "y", "x"), fill_value=255, zlib=True)
+        var = dest.createVariable("bare_soil", data_type, ("time", "y", "x"), fill_value=fill_value, zlib=True)
         var.long_name = "Bare Soil"
         var.units = '%'
         var.grid_mapping = "sinusoidal"

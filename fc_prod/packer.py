@@ -110,16 +110,13 @@ def pack(infoldername, outfoldername, ver, low_res=False, update_file=''):
         var.units = "m"
         var.long_name = "x coordinate of projection"
         var.standard_name = "projection_x_coordinate"
-        var[:] = np.linspace(
-            geot[0],
-            geot[0] + (config[low_res]["scale"] * geot[1] * phot_stack.shape[2]),
-            phot_stack.shape[2])
+        var[:] = np.arange(0, phot_stack.shape[2] * config[low_res]["scale"]) * geot[1] + geot[0] + geot[1]/2
 
         var = dest.createVariable("y", "f8", ("y",))
         var.units = "m"
         var.long_name = "y coordinate of projection"
         var.standard_name = "projection_y_coordinate"
-        var[:] = np.linspace(geot[3], geot[3]+(config[low_res]["scale"]*geot[5]*phot_stack.shape[1]), phot_stack.shape[1])
+        var[:] = np.arange(0, phot_stack.shape[1] * config[low_res]["scale"]) * geot[5] + geot[3] + geot[5]/2 
 
         # Same variable properties for all data.
         # NB: use chunksizes = (5, 240, 240) for low-res data.
