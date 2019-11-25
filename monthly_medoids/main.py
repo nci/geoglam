@@ -74,24 +74,31 @@ def pack_data(src_filename, output_filename, arr, timestamps):
         var.standard_name = "projection_y_coordinate"
         var[:] = np.arange(0, ds.RasterYSize) * geot[5] + geot[3] + geot[5]/2
 
-        var = dest.createVariable("phot_veg", "u1", ("time", "y", "x"), fill_value=255, zlib=True, chunksizes=(1, 240, 240))
+        var = dest.createVariable("phot_veg", "u1", ("time", "y", "x"), fill_value=255, zlib=True)
         var.long_name = "Photosynthetic Vegetation"
         var.units = '%'
         var.grid_mapping = "sinusoidal"
         var[:] = arr[:, 0, :, :]
 
-        var = dest.createVariable("nphot_veg", "u1", ("time", "y", "x"), fill_value=255, zlib=True, chunksizes=(1, 240, 240))
+        var = dest.createVariable("nphot_veg", "u1", ("time", "y", "x"), fill_value=255, zlib=True)
         var.long_name = "Non Photosynthetic Vegetation"
         var.units = '%'
         var.grid_mapping = "sinusoidal"
         var[:] = arr[:, 1, :, :]
 
-        var = dest.createVariable("bare_soil", "u1", ("time", "y", "x"), fill_value=255, zlib=True, chunksizes=(1, 240, 240))
+        var = dest.createVariable("bare_soil", "u1", ("time", "y", "x"), fill_value=255, zlib=True)
         var.long_name = "Bare Soil"
         var.units = '%'
         var.grid_mapping = "sinusoidal"
         var[:] = arr[:, 2, :, :]
 
+        var = dest.createVariable("tot_cov", "u1", ("time", "y", "x"), fill_value=255, zlib=True)
+        var.long_name = "Total Cover"
+        var.units = '%'
+        var.grid_mapping = "sinusoidal"
+        mx = np.ma.masked_values(arr[:, 0, :, :], 255)  + np.ma.masked_values(arr[:, 1, :, :], 255) 
+        mx = mx.filled(255)
+        var[:] = mx
         var = dest.createVariable("sinusoidal", 'S1', ())
 
         var.grid_mapping_name = "sinusoidal"
@@ -121,7 +128,10 @@ def compute_monthly_medoid(filename, output_dir, ver):
           ts = netCDF4.num2date(ds['time'][m[-1]], ds['time'].units) 
           next_date = ts + datetime.timedelta(days=8)          
           if ts.month == next_date.month:
-            month_idx_tmp[i] = []
+              if ts.year == 2001 and ts.month == 6:
+                  print ' Problem here incomplete files but still will do '
+              else:
+                  month_idx_tmp[i] = []
 
         month_idx = [m for m in month_idx_tmp if len(m) > 0]        
         
@@ -143,6 +153,7 @@ def compute_monthly_medoid(filename, output_dir, ver):
             month_medoid = medoid(d)
             monthly_data_list.append(month_medoid)
             ts = netCDF4.num2date(ds['time'][m_idx[0]], ds['time'].units) 
+            ts = ts.replace(day=1)
             timestamp_list.append(ts)
             month = m + 1
             

@@ -23,8 +23,8 @@ script = '''
 #PBS -N geoglam_h{h}v{v}
 #PBS -P {project} 
 #PBS -q normal
-#PBS -l walltime=20:00:00
-#PBS -l mem=64GB
+#PBS -l walltime=01:00:00
+#PBS -l mem=48GB
 #PBS -l ncpus=12
 #PBS -o {log_dir}
 #PBS -e {log_dir}
@@ -36,8 +36,8 @@ set -x
 PYTHON={miniconda_path}/bin/python
 
 cd {base_dir}
-bash pipeline.sh {h} {v} {year_start} {year_end} fc_prod {prod_dir} $PYTHON 2>&1|tee {log_dir}/geoglam.h{h}v{v}.log 
-bash pipeline.sh {h} {v} {year_start} {year_end} all_agg {prod_dir} $PYTHON 2>&1|tee -a {log_dir}/geoglam.h{h}v{v}.log 
+bash pipeline.sh {h} {v} {year_start} {year_end} fc_prod {prod_dir} $PYTHON {log_dir} 2>&1|tee -a {log_dir}/geoglam.h{h}v{v}.log
+bash pipeline.sh {h} {v} {year_start} {year_end} all_agg {prod_dir} $PYTHON {log_dir} 2>&1|tee -a {log_dir}/geoglam.h{h}v{v}.log 
 
 '''
 

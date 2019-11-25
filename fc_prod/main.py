@@ -25,6 +25,7 @@ import sys
 import datetime
 import argparse
 import time
+from datetime import date, timedelta
 
 def get_nc_name(hdf_tile_path, dest, ver, suffix=""):
     file_name = hdf_tile_path.split("/")[-1][:-4]
@@ -43,6 +44,15 @@ def get_nc_name(hdf_tile_path, dest, ver, suffix=""):
 #    g, b, r = img.split()
 #    img = Image.merge("RGB", (r, g, b))
 #    img.save(file_name[:-2] + "png")
+
+def all8days(year, month):
+    d = date(year, 1, 1)
+    month_days = []
+    while d.year == year:
+        if d.month == month:
+            month_days.append(d.day)
+        d += timedelta(days = 8)
+    return month_days
 
 
 def pack_data_lowres(hdf_file, arr, dest, ver):
@@ -163,6 +173,14 @@ def pack_data(hdf_file, arr, dest, ver):
         var.grid_mapping = "sinusoidal"
         var[:] = arr[:, :, 2]
         
+        var = dest.createVariable("tot_cov", "u1", ("y", "x"), fill_value=255)
+        var.long_name = "Total Cover"
+        var.units = '%'
+        var.grid_mapping = "sinusoidal"
+        mx = np.ma.masked_values(arr[:, :, 0], 255)  + \
+                np.ma.masked_values(arr[:, :, 1], 255)
+        mx = mx.filled(255)
+        var[:] = mx
         #generate_thumbnail(arr, file_name)
         
         var = dest.createVariable("sinusoidal", 'S1', ())
@@ -352,20 +370,9 @@ if __name__ == "__main__":
                 
         days.append(day)
     
-    #we cannot assume the first day of the month starts from 1. For example,
-    #Feb in 2016 starts from 2 in this dataset
-    #Thus we need to manually extract the first day of the month and then extract every 8th day from there     
-    sorted_days = np.sort(days)
-    desired_days = []
-    last_day = -1
-    for i, sd in enumerate(sorted_days):
-        if i == 0:
-            desired_days.append(sd)
-            last_day = sd
-        else:
-            if sd - last_day >= 8:
-                desired_days.append(sd)
-                last_day = sd
+    #we need to extract 8 days of the camendar year      
+    cyclic_days = all8days(tile_year, tile_month)
+    desired_days = sorted(set(set(days) & set(cyclic_days)))
 
     desired_timestamps = []    
     for d in desired_days:
@@ -448,5 +455,3 @@ if __name__ == "__main__":
         print 'saving output to %s' % dest_path
         pack_data(modis_tile, out, dest_path, args.version)
  
-
-    

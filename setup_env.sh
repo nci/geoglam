@@ -14,9 +14,7 @@
 # limitations under the License.
 # =========================================================================
 #!/bin/bash
-set -e
-set -u
-set -x
+set -xeu
 
 wget https://repo.continuum.io/miniconda/Miniconda2-latest-Linux-x86_64.sh -O miniconda.sh
 
@@ -28,6 +26,7 @@ export PATH=$INSTALL_DIR/miniconda/bin:$PATH
 which python
 which conda
 
+conda install -y "poppler<0.62"
 conda install -y numpy
 conda install -y scipy
 conda install -y cython 
@@ -49,6 +48,3 @@ cd monthly_medoids
 python compile_medoids.py
 
 echo 'Environment successfully set up'
-
-
-

@@ -35,7 +35,7 @@ def get_output_filename(output_dir, source_file, month, product_name, ver):
     full_filename = os.path.join(output_dir, filename)
     return full_filename
 
-def pack_data(src_filename, output_filename, pv_data, npv_data, soil_data, data_type, timestamps):
+def pack_data(src_filename, output_filename, pv_data, npv_data, soil_data, cov_data, data_type, timestamps):
     with netCDF4.Dataset(output_filename, 'w', format='NETCDF4') as dest:
         with open('nc_metadata.json') as data_file:
             attrs = json.load(data_file)
@@ -88,6 +88,12 @@ def pack_data(src_filename, output_filename, pv_data, npv_data, soil_data, data_
         var.grid_mapping = "sinusoidal"
         var[:] = soil_data
 
+        var = dest.createVariable("tot_cov", data_type, ("time", "y", "x"), fill_value=fill_value, zlib=True)
+        var.long_name = "Total Cover"
+        var.units = '%'
+        var.grid_mapping = "sinusoidal"
+        var[:] = cov_data
+
         var = dest.createVariable("sinusoidal", 'S1', ())
 
         var.grid_mapping_name = "sinusoidal"
@@ -133,13 +139,14 @@ def compute_mean_diff(data):
     mean_data = data_sum / counts
     diff = data - mean_data
     nan_masks = np.isnan(diff) | np.isinf(diff)
-    diff[nan_masks] = 255
-    diff[~masks] = 255
+    diff[nan_masks] = 127 
+    diff[~masks] = 127
+    diff = np.round(diff).astype(np.int8)
     
     return diff
                 
 def compute_by_month(src_root_filename, raw_src_file_list, month, mean_diffs_output_dir, percentiles_output_dir, ver):
-    pv_data = npv_data = soil_data = None
+    pv_data = npv_data = soil_data = cov_data = None
     t0 = time.time()
     
     src_file_list = []
@@ -171,17 +178,20 @@ def compute_by_month(src_root_filename, raw_src_file_list, month, mean_diffs_out
             pv = np.asarray(ds['phot_veg'][month2idx, ...], dtype=np.float32)
             npv = np.asarray(ds['nphot_veg'][month2idx, ...], dtype=np.float32)
             soil = np.asarray(ds['bare_soil'][month2idx, ...], dtype=np.float32)
+            tot = np.asarray(ds['tot_cov'][month2idx, ...], dtype=np.float32)
             ts = netCDF4.num2date(ds['time'][month2idx], ds['time'].units) 
-
+            ts = ts.replace(day=1)
             if pv_data is None:
                 fill_val = 255
                 pv_data = fill_val * np.ones((len(src_file_list), pv.shape[0], pv.shape[1]), dtype=pv.dtype)
                 npv_data = fill_val * np.ones_like(pv_data)
                 soil_data = fill_val * np.ones_like(pv_data)
+                cov_data = fill_val * np.ones_like(pv_data)
 
             pv_data[i_src, ...] = pv
             npv_data[i_src, ...] = npv
             soil_data[i_src, ...] = soil
+            cov_data[i_src, ...] = tot
             timestamp_list[i_src] = ts
 
     if pv_data is None:
@@ -190,6 +200,7 @@ def compute_by_month(src_root_filename, raw_src_file_list, month, mean_diffs_out
     pv_mean_diff = compute_mean_diff(pv_data)
     npv_mean_diff = compute_mean_diff(npv_data)
     soil_mean_diff = compute_mean_diff(soil_data)
+    cov_mean_diff = compute_mean_diff(cov_data)
     
     #we save one file per year for the given month. This simplifies combine_outputs.py
     for i_src, src_f in enumerate(src_file_list):
@@ -200,11 +211,14 @@ def compute_by_month(src_root_filename, raw_src_file_list, month, mean_diffs_out
             output_filename, 
             np.expand_dims(pv_mean_diff[i_src, ...], 0), 
             np.expand_dims(npv_mean_diff[i_src, ...], 0), 
-            np.expand_dims(soil_mean_diff[i_src, ...], 0), 'f4', [timestamp_list[i_src], ])
+            np.expand_dims(soil_mean_diff[i_src, ...], 0),
+            np.expand_dims(cov_mean_diff[i_src, ...], 0),
+            'i1', [timestamp_list[i_src], ])
 
     pv_pct = compute_percentiles(pv_data)
     npv_pct = compute_percentiles(npv_data)
     soil_pct = compute_percentiles(soil_data)
+    cov_pct = compute_percentiles(cov_data)
    
     for i_src, src_f in enumerate(src_file_list):
         output_filename = get_output_filename(percentiles_output_dir, src_f, month, 'Percentile', ver)
@@ -214,7 +228,9 @@ def compute_by_month(src_root_filename, raw_src_file_list, month, mean_diffs_out
             output_filename, 
             np.expand_dims(pv_pct[i_src, ...], 0), 
             np.expand_dims(npv_pct[i_src, ...], 0), 
-            np.expand_dims(soil_pct[i_src, ...], 0), 'u1', [timestamp_list[i_src], ])
+            np.expand_dims(soil_pct[i_src, ...], 0),
+            np.expand_dims(cov_pct[i_src, ...], 0),
+            'u1', [timestamp_list[i_src], ])
         
      
     print 'time elapsed: ', time.time() - t0

@@ -14,9 +14,7 @@
 # limitations under the License.
 # =========================================================================
 #!/bin/bash
-set -e
-set -x
-set -u
+set -xeu
 
 date "+%Y-%m-%d %H:%M:%S"
 VER=310
@@ -29,107 +27,89 @@ CHECKPOINT=$5
 
 BASE_OUTPUT=$6/v${VER}/tiles
 PYTHON=$7
+LOG_DIR=$8
 
 PARALLEL=utils/parallel
-FC_OUTPUT=$BASE_OUTPUT/8-day/cover/fc_outputs_tmp
-FC_LOGS=$BASE_OUTPUT/8-day/cover/fc_logs
+FC_OUTPUT=$LOG_DIR/8-day/cover/fc_outputs_tmp
+FC_LOGS=$LOG_DIR/8-day/cover/fc_logs
 PACKED_OUTPUT=$BASE_OUTPUT/8-day/cover
 MEDOIDS_OUTPUT=$BASE_OUTPUT/monthly/cover
 ANOMALY_MEAN_DIFF_OUTPUT=$BASE_OUTPUT/monthly/anomalies
 ANOMALY_MEAN_DIFF_TMP_OUTPUT=${ANOMALY_MEAN_DIFF_OUTPUT}_h${H}v${V}_tmp
 ANOMALY_PERCENTILE_OUTPUT=$BASE_OUTPUT/monthly/deciles
 ANOMALY_PERCENTILE_TMP_OUTPUT=${ANOMALY_PERCENTILE_OUTPUT}_h${H}v${V}_tmp
-TOTAL_COVER_OUTPUT=$BASE_OUTPUT/8-day/total_cover
 
 if [[ "$CHECKPOINT" = 'fc_prod' ]]; then
-mkdir -p $FC_OUTPUT
-mkdir -p $PACKED_OUTPUT
-mkdir -p $FC_LOGS
+	mkdir -p $FC_OUTPUT
+	mkdir -p $PACKED_OUTPUT
+	mkdir -p $FC_LOGS
 
-for i in $(seq $YEAR_BGN $YEAR_END)
-do
-rm -rf $FC_OUTPUT/h${H}v${V}.$i
-mkdir -p $FC_OUTPUT/h${H}v${V}.$i
+	for i in $(seq $YEAR_BGN $YEAR_END)
+	do
+		rm -rf $FC_OUTPUT/h${H}v${V}.$i
+		mkdir -p $FC_OUTPUT/h${H}v${V}.$i
 
-FREEMEM=$(free -k|grep 'cache:'|awk '{print $4}')
-N_JOBS=$(echo "$FREEMEM/(4.5*1024^2)"|bc)
-
-UPDATE_FILE=$(python fc_prod/get_update_file.py $PACKED_OUTPUT $i $H $V --version $VER)
-seq 1 12|$PARALLEL -j$N_JOBS -k --joblog $FC_LOGS/h${H}v${V}.$i.parjob.log \
-     $PYTHON fc_prod/main.py /g/data2/u39/public/data/modis/lpdaac-tiles-c6/ $i {} $H $V $FC_OUTPUT \
-     --update_file $UPDATE_FILE --version $VER
-$PYTHON fc_prod/packer.py $FC_OUTPUT/h${H}v${V}.$i/ $PACKED_OUTPUT --update_file $UPDATE_FILE --version $VER
-rm -rf $FC_OUTPUT/h${H}v${V}.$i
-
-date "+%Y-%m-%d %H:%M:%S"
-done
-
-date "+%Y-%m-%d %H:%M:%S"
-echo __checkpoint_fc_prod
+		FREEMEM=$(free -k|grep 'cache:'|awk '{print $4}')
+		N_JOBS=$(echo "$FREEMEM/(4.5*1024^2)"|bc)
+		UPDATE_FILE=$($PYTHON fc_prod/get_update_file.py $PACKED_OUTPUT $i $H $V --version $VER)
+		seq 1 12|$PARALLEL -j$N_JOBS -k --joblog $FC_LOGS/h${H}v${V}.$i.parjob.log \
+     		   $PYTHON fc_prod/main.py /g/data4/u39/public/data/modis/lpdaac-tiles-c6/ $i {} $H $V $FC_OUTPUT \
+     		   --update_file $UPDATE_FILE --version $VER
+		$PYTHON fc_prod/packer.py $FC_OUTPUT/h${H}v${V}.$i/ $PACKED_OUTPUT --update_file $UPDATE_FILE --version $VER
+		rm -rf $FC_OUTPUT/h${H}v${V}.$i
+		date "+%Y-%m-%d %H:%M:%S"
+	done
+	date "+%Y-%m-%d %H:%M:%S"
+	echo __checkpoint_fc_prod
 fi
-
 
 if [[ "$CHECKPOINT" = 'all_agg' ]] || [[ "$CHECKPOINT" = 'medoids' ]]; then
-FREEMEM=$(free -k|grep 'cache:'|awk '{print $4}')
-N_JOBS=$(echo "$FREEMEM/(14.5*1024^2)"|bc)
-seq $YEAR_BGN $YEAR_END|$PARALLEL -j$N_JOBS -k $PYTHON monthly_medoids/main.py $PACKED_OUTPUT $H $V {} $MEDOIDS_OUTPUT --version $VER
-
-date "+%Y-%m-%d %H:%M:%S"
-echo __checkpoint_medoids
+	FREEMEM=$(free -k|grep 'cache:'|awk '{print $4}')
+	N_JOBS=$(echo "$FREEMEM/(14.5*1024^2)"|bc)
+	seq $YEAR_BGN $YEAR_END|$PARALLEL -j$N_JOBS -k $PYTHON monthly_medoids/main.py $PACKED_OUTPUT $H $V {} $MEDOIDS_OUTPUT --version $VER
+	date "+%Y-%m-%d %H:%M:%S"
+	echo __checkpoint_medoids
 fi
-
 
 INIT_YEAR=2001
 CURR_YEAR=$(date "+%Y")
+
 if [[ "$CHECKPOINT" = 'all_agg' ]] || [[ "$CHECKPOINT" = 'anomaly_detection' ]]; then
-FREEMEM=$(free -k|grep 'cache:'|awk '{print $4}')
-N_JOBS=$(echo "$FREEMEM/(7.5*1024^2)"|bc)
-mkdir -p ${ANOMALY_MEAN_DIFF_TMP_OUTPUT} 
-mkdir -p ${ANOMALY_PERCENTILE_TMP_OUTPUT} 
-seq 1 12|$PARALLEL -j$N_JOBS -k $PYTHON anomaly_detection/main.py $PACKED_OUTPUT $MEDOIDS_OUTPUT $H $V \
-    $INIT_YEAR $CURR_YEAR {} ${ANOMALY_MEAN_DIFF_TMP_OUTPUT} ${ANOMALY_PERCENTILE_TMP_OUTPUT} --version $VER
+	FREEMEM=$(free -k|grep 'cache:'|awk '{print $4}')
+	N_JOBS=$(echo "$FREEMEM/(7.5*1024^2)"|bc)
+	mkdir -p ${ANOMALY_MEAN_DIFF_TMP_OUTPUT} 
+	mkdir -p ${ANOMALY_PERCENTILE_TMP_OUTPUT} 
+	seq 1 12|$PARALLEL -j$N_JOBS -k $PYTHON anomaly_detection/main.py $PACKED_OUTPUT $MEDOIDS_OUTPUT $H $V \
+        	$INIT_YEAR $CURR_YEAR {} ${ANOMALY_MEAN_DIFF_TMP_OUTPUT} ${ANOMALY_PERCENTILE_TMP_OUTPUT} --version $VER
 
-date "+%Y-%m-%d %H:%M:%S"
-echo __checkpoint_anomaly_detection
+	date "+%Y-%m-%d %H:%M:%S"
+	echo __checkpoint_anomaly_detection
 fi
-
 
 if [[ "$CHECKPOINT" = 'all_agg' ]] || [[ "$CHECKPOINT" = 'combine_mean_diff' ]]; then
-echo 'combine monthly mean differences'
-$PYTHON anomaly_detection/combine_outputs.py $PACKED_OUTPUT ${ANOMALY_MEAN_DIFF_TMP_OUTPUT} $H $V \
-    $INIT_YEAR $CURR_YEAR $ANOMALY_MEAN_DIFF_OUTPUT Mean_Diff f4 --version $VER
+	echo 'combine monthly mean differences'
+	$PYTHON anomaly_detection/combine_outputs.py $PACKED_OUTPUT ${ANOMALY_MEAN_DIFF_TMP_OUTPUT} $H $V \
+        	$INIT_YEAR $CURR_YEAR $ANOMALY_MEAN_DIFF_OUTPUT Mean_Diff i1 --version $VER --medout $MEDOIDS_OUTPUT
 
-date "+%Y-%m-%d %H:%M:%S"
-echo __checkpoint_combine_mean_diff
+	date "+%Y-%m-%d %H:%M:%S"
+	echo __checkpoint_combine_mean_diff
 fi
-
 
 if [[ "$CHECKPOINT" = 'all_agg' ]] || [[ "$CHECKPOINT" = 'combine_percentiles' ]]; then
-echo 'combine monthly percentiles'
-$PYTHON anomaly_detection/combine_outputs.py $PACKED_OUTPUT ${ANOMALY_PERCENTILE_TMP_OUTPUT} $H $V \
-    $INIT_YEAR $CURR_YEAR $ANOMALY_PERCENTILE_OUTPUT Percentile u1 --version $VER
+	echo 'combine monthly percentiles'
+	$PYTHON anomaly_detection/combine_outputs.py $PACKED_OUTPUT ${ANOMALY_PERCENTILE_TMP_OUTPUT} $H $V \
+        	$INIT_YEAR $CURR_YEAR $ANOMALY_PERCENTILE_OUTPUT Percentile u1 --version $VER --medout $MEDOIDS_OUTPUT
 
-date "+%Y-%m-%d %H:%M:%S"
-echo __checkpoint_combine_percentiles
+	date "+%Y-%m-%d %H:%M:%S"
+	echo __checkpoint_combine_percentiles
 fi
-
 
 if [[ "$CHECKPOINT" = 'all_agg' ]] || [[ "$CHECKPOINT" = 'cleanup' ]]; then
-rm -rf ${ANOMALY_MEAN_DIFF_TMP_OUTPUT}
-rm -rf ${ANOMALY_PERCENTILE_TMP_OUTPUT}
+	rm -rf ${ANOMALY_MEAN_DIFF_TMP_OUTPUT}
+	rm -rf ${ANOMALY_PERCENTILE_TMP_OUTPUT}
 
-date "+%Y-%m-%d %H:%M:%S"
-echo __checkpoint_cleanup
-fi
-
-
-if [[ "$CHECKPOINT" = 'all_agg' ]] || [[ "$CHECKPOINT" = 'derived' ]]; then
-mkdir -p ${TOTAL_COVER_OUTPUT}
-FC_FILES=$(ls $PACKED_OUTPUT/FC.v${VER}.MCD43A4.h${H}v${V}.*.006.nc)
-$PARALLEL -k $PYTHON derived_prod/build_total_cover_vrt.py NETCDF:{}:bare_soil --dst_dir ${TOTAL_COVER_OUTPUT} ::: $FC_FILES
-
-date "+%Y-%m-%d %H:%M:%S"
-echo __checkpoint_derived
+	date "+%Y-%m-%d %H:%M:%S"
+	echo __checkpoint_cleanup
 fi
 
 date "+%Y-%m-%d %H:%M:%S"
