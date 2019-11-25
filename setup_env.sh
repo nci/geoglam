@@ -26,6 +26,7 @@ export PATH=$INSTALL_DIR/miniconda/bin:$PATH
 which python
 which conda
 
+conda install -y "poppler<0.62"
 conda install -y numpy
 conda install -y scipy
 conda install -y cython 
