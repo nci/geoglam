@@ -15,11 +15,10 @@
 # =========================================================================
 set -xeu
 
-cd monthly_medoids
-../miniconda/bin/python compile_medoids.py
-cd ..
-
 DATA_DIR=<full absolute path>/geoglam_data/data
+LOG_DIR=<full absolute path>/logs
 
-bash pipeline.sh 29 12 2016 2017 fc_prod $DATA_DIR miniconda/bin/python
-bash pipeline.sh 29 12 2016 2017 all_agg $DATA_DIR miniconda/bin/python
+(cd monthly_medoids && ../miniconda/bin/python compile_medoids.py)
+
+bash pipeline.sh 29 12 2016 2017 fc_prod $DATA_DIR miniconda/bin/python $LOG_DIR
+bash pipeline.sh 29 12 2016 2017 all_agg $DATA_DIR miniconda/bin/python $LOG_DIR
