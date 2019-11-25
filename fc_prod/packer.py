@@ -49,6 +49,7 @@ def pack(infoldername, outfoldername, ver, low_res=False, update_file=''):
         phot_stack = None
         nphot_stack = None
         bare_stack = None
+        tot_stack = None
         
         print 'Update file not found: %s, creating FC products from scratch' % update_file
     else:
@@ -56,6 +57,7 @@ def pack(infoldername, outfoldername, ver, low_res=False, update_file=''):
             phot_stack = src["phot_veg"][:]
             nphot_stack = src["nphot_veg"][:]
             bare_stack = src["bare_soil"][:]
+            tot_stack = src["tot_cov"][:]
             ts = netCDF4.num2date(src['time'][:], src['time'].units, src['time'].calendar)
             for i in xrange(ts.shape[0]):
                 timestamps.append(ts[i])
@@ -80,10 +82,12 @@ def pack(infoldername, outfoldername, ver, low_res=False, update_file=''):
                 phot_stack = np.expand_dims(src["phot_veg"][:], axis=0)
                 nphot_stack = np.expand_dims(src["nphot_veg"][:], axis=0)
                 bare_stack = np.expand_dims(src["bare_soil"][:], axis=0)
+                tot_stack = np.expand_dims(src["tot_cov"][:], axis=0)
             else:
                 phot_stack = np.vstack((phot_stack, np.expand_dims(src["phot_veg"][:], axis=0)))
                 nphot_stack = np.vstack((nphot_stack, np.expand_dims(src["nphot_veg"][:], axis=0)))
                 bare_stack = np.vstack((bare_stack, np.expand_dims(src["bare_soil"][:], axis=0)))
+                tot_stack = np.vstack((tot_stack, np.expand_dims(src["tot_cov"][:], axis=0)))
 
     assert phot_stack is not None
     print 'Saving file %s' % config[low_res]["dest_filename"].format(ver=ver,id=id), phot_stack.shape
@@ -110,6 +114,7 @@ def pack(infoldername, outfoldername, ver, low_res=False, update_file=''):
         var.units = "m"
         var.long_name = "x coordinate of projection"
         var.standard_name = "projection_x_coordinate"
+
         var[:] = np.arange(0, phot_stack.shape[2] * config[low_res]["scale"]) * geot[1] + geot[0] + geot[1]/2
 
         var = dest.createVariable("y", "f8", ("y",))
@@ -141,6 +146,12 @@ def pack(infoldername, outfoldername, ver, low_res=False, update_file=''):
         var.units = '%'
         var.grid_mapping = "sinusoidal"
         var[:] = bare_stack
+
+        var = create_data_var("tot_cov")
+        var.long_name = "Total Cover"
+        var.units = '%'
+        var.grid_mapping = "sinusoidal"
+        var[:] = tot_stack
 
         var = dest.createVariable("sinusoidal", 'S1', ())
         var.grid_mapping_name = "sinusoidal"

@@ -13,9 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # =========================================================================
-set -e
-set -u
-set -x
+set -xeu
 
 cd monthly_medoids
 ../miniconda/bin/python compile_medoids.py
@@ -25,5 +23,3 @@ DATA_DIR=<full absolute path>/geoglam_data/data
 
 bash pipeline.sh 29 12 2016 2017 fc_prod $DATA_DIR miniconda/bin/python
 bash pipeline.sh 29 12 2016 2017 all_agg $DATA_DIR miniconda/bin/python
-
-    
