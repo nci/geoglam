@@ -1,6 +1,6 @@
-# Geoglam Fractional cover - MODIS, CSIRO Land and Water algorithm
+# Geoglam Fractional Cover - MODIS, CSIRO Land and Water Algorithm
 
-Vegetation fractional cover represents the exposed proportion of Photosynthetic Vegetation (PV), Non-Photosynthetic Vegetation (NPV) and Bare Soil (BS) within each pixel. In forested canopies the photosynthetic or non-photosynthetic portions of trees may obscure those of the grass layer and/or bare soil. The MODIS Fractional Cover product is derived from the MODIS Nadir BRDF-Adjusted Reflectance (NBAR) product (MCD43A4, collection 5). A suite of derivative are also produced, namely total vegetation cover (PV+NPV), monthly fractional cover and total vegetation cover, monthly anomaly of total cover against the time series, and three-monthly total cover difference. MODIS fractional cover has been validated for Australia.
+Vegetation fractional cover represents the exposed proportion of Photosynthetic Vegetation (PV), Non-Photosynthetic Vegetation (NPV) and Bare Soil (BS) within each pixel. In forested canopies the photosynthetic or non-photosynthetic portions of trees may obscure those of the grass layer and/or bare soil. The MODIS Fractional Cover product is derived from the MODIS Nadir BRDF-Adjusted Reflectance (NBAR) product (MCD43A4, collection 6). A suite of derivative are also produced, namely total vegetation cover (PV+NPV), monthly fractional cover and total vegetation cover, monthly anomaly of total cover against the time series, and three-monthly total cover difference. MODIS fractional cover has been validated for Australia.
 
 ### Enivronment setup
 
